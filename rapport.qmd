@@ -127,7 +127,11 @@ problems = (OptimizationProblems.ADNLPProblems.eval(Meta.parse(problem))() for p
 ```
 
 ```{julia}
-model1 = OptimizationProblems.ADNLPProblems.hs4()
+model1 = OptimizationProblems.ADNLPProblems.hs242()
+```
+
+```{julia}
+
 C = SimpleBounds(model1.meta.lvar, model1.meta.uvar)
 x1 = projected_grad(model1, C)
 stats1 = ipopt(model1, print_level=0)
@@ -136,6 +140,9 @@ println(norm(x1 - stats1.solution)/norm(stats1.solution))
 
 ```{julia}
 model2 = OptimizationProblems.ADNLPProblems.hs45()
+```
+
+```{julia}
 C = SimpleBounds(model2.meta.lvar, model2.meta.uvar)
 x2 = projected_grad(model2, C)
 stats2 = ipopt(model2, print_level=0)
@@ -144,6 +151,9 @@ println(norm(x2 - stats2.solution)/norm(stats2.solution))
 
 ```{julia}
 model3 = OptimizationProblems.ADNLPProblems.hs5()
+```
+
+```{julia}
 C = SimpleBounds(model3.meta.lvar, model3.meta.uvar)
 x3 = projected_grad(model3, C)
 stats3 = ipopt(model3, print_level=0)
