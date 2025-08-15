@@ -88,7 +88,7 @@ function projected_grad(nlp, C; eps_a=1.0e-8, eps_r=1.0e-8)
     xk = projection!(x0, C)
     # Initialisation de la derection
     p = -grad(nlp,xk)
-    println("Iter\t\t\t||xk - xt||\t\t\t\t objectif")
+    println("Iter\t\t\t||xk - xk(1)||\t\t\t\t objectif")
     println(@sprintf("%d\t\t\t%s\t\t\t\t%.3e", 
         k, "       -        ", obj(nlp, xk)))
 
@@ -135,7 +135,7 @@ model1 = OptimizationProblems.ADNLPProblems.hs242()
 C = SimpleBounds(model1.meta.lvar, model1.meta.uvar)
 x1 = projected_grad(model1, C)
 stats1 = ipopt(model1, print_level=0)
-println(norm(x1 - stats1.solution)/norm(stats1.solution))
+println("Erreur relatif d'écart entre gradient projeté est Ipopt :   ",norm(x1 - stats1.solution)/norm(stats1.solution))
 ```
 
 ```{julia}
@@ -146,7 +146,7 @@ model2 = OptimizationProblems.ADNLPProblems.hs45()
 C = SimpleBounds(model2.meta.lvar, model2.meta.uvar)
 x2 = projected_grad(model2, C)
 stats2 = ipopt(model2, print_level=0)
-println(norm(x2 - stats2.solution)/norm(stats2.solution))
+println("Erreur relatif d'écart entre gradient projeté est Ipopt :    ", norm(x2 - stats2.solution)/norm(stats2.solution))
 ```
 
 ```{julia}
@@ -157,7 +157,7 @@ model3 = OptimizationProblems.ADNLPProblems.hs5()
 C = SimpleBounds(model3.meta.lvar, model3.meta.uvar)
 x3 = projected_grad(model3, C)
 stats3 = ipopt(model3, print_level=0)
-println(norm(x3 - stats3.solution)/norm(stats3.solution))
+println("Erreur relatif d'écart entre gradient projeté est Ipopt:   ", norm(x3 - stats3.solution)/norm(stats3.solution))
 ```
 
 
