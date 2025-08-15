@@ -219,6 +219,6 @@ x_pg = projected_grad(nlp, Cball; eps_a=1e-9, eps_r=1e-9)
 
 - Cette méthode peut être utilisée pour le calcul du pas dans les méthodes de région de confiance, puisqu’on impose la condition d’Armijo, laquelle assure la décroissance de la fonction objectif — point essentiel.
 
-- L’avantage de cette méthode est qu’elle permet de trouver un point stationnaire du sous-problème de région de confiance à une tolérance près. À l’inverse, dans la méthode du gradient conjugué, dès qu’un itéré sort de la boule, on projette l’avant-dernier itéré sur la boule, ce qui n’est ni la solution du sous-problème de région de confiance ni même un point stationnaire.
+- L’avantage de cette méthode est qu’elle permet de trouver un point stationnaire sous certains hypothèses du sous-problème de région de confiance à une tolérance près . À l’inverse, dans la méthode du gradient conjugué, dès qu’un itéré sort de la boule, on projette l’avant-dernier itéré sur la boule, ce qui n’est ni la solution du sous-problème de région de confiance ni même un point stationnaire.
 
 - Son principal inconvénient est qu’elle est coûteuse en évaluations de l’objectif par rapport au gradient conjuguée.
