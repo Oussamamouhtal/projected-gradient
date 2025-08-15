@@ -2,8 +2,8 @@
 title: "Rapport de laboratoire 6"
 subtitle: "MTH8408"
 author:
-  - name: Votre nom
-    email: votre.adresse@polymtl.ca
+  - name: Oussama Mouhtal
+    email: oussama-2.mouhtal@polymtl.ca
     affiliation:
       - name: Polytechnique Montréal
 format:
@@ -24,10 +24,18 @@ engine: julia
 ---
 
 ```{julia}
+#|echo : false
 #| output: false
-VERSION == v"1.11.5" || error("please use julia version 1.11.5")
+#VERSION == v"1.11.5" || error("please use julia version 1.11.5")
 using Pkg
 Pkg.activate("labo11_env")
+Pkg.add("ADNLPModels")
+Pkg.add("NLPModels")
+Pkg.add("OptimizationProblems")  # collection + outils pour sélectionner les problèmes
+Pkg.add("NLPModelsIpopt")
+
+
+using LinearAlgebra, NLPModels,ADNLPModels, OptimizationProblems, OptimizationProblems.ADNLPProblems, Printf, NLPModelsIpopt
 ```
 
 # Question 1
@@ -36,23 +44,139 @@ Implémenter la condition d'Armijo modifiée et la méthode du gradient projeté
 Votre implémentation doit accepter des contraintes définies par un ensemble "simple" $C$.
 
 ```{julia}
-# votre code ici
+abstract type AbstractSimpleSet end;
+
+
+mutable struct SimpleBounds{V} <: AbstractSimpleSet where V <: AbstractVector
+  ℓ::V  # vector of lower bounds
+  u::V  # vector of upper bounds
+end
+
+
+function projection!(x::V, C::SimpleBounds{V}) where V <: AbstractVector
+  ℓ = C.ℓ
+  u = C.u
+  x .= min.(max.(x, ℓ), u)
+  x
+end
+
+
+function Armijo_modified(nlp, xk, p, C)
+  t = 1.0
+  xt = projection!(xk + t .* p, C)
+  errorsquare = dot(xt - xk, xt - xk)
+  while obj(nlp, xt) > obj(nlp, xk) - 1.0e-4 * errorsquare / t # alpha = 1.0e-4 
+    t /= 2
+    xt = projection!(xk + t .* p, C)
+  end
+  return xt, errorsquare
+end
+"""
+
+"""
+function projected_grad(nlp, C; eps_a=1.0e-8, eps_r=1.0e-8)
+
+    # Taille du problème
+    n = nlp.meta.nvar
+    # Point initiale proposé par nlp
+    x0 = nlp.meta.x0
+
+    # Initialisation des itérations
+    k=0
+
+    # Point initial projeté
+    xk = projection!(x0, C)
+    # Initialisation de la derection
+    p = -grad(nlp,xk)
+    println("Iter\t\t\t||xk - xt||\t\t\t\t objectif")
+    println(@sprintf("%d\t\t\t%s\t\t\t\t%.3e", 
+        k, "       -        ", obj(nlp, xk)))
+
+    # Première itération
+    xk, errorsquare0 =  Armijo_modified(nlp, xk, p, C)
+    k=1
+    println(@sprintf("%d\t\t\t%.3e\t\t\t\t%.3e", 
+        k, sqrt(errorsquare0), obj(nlp, xk)))
+    errorsquare = errorsquare0
+    while sqrt(errorsquare) > eps_a + eps_r* sqrt(errorsquare0) && k < 100*n
+        # Mise à jour du gradient
+        p .= -grad(nlp, xk) 
+        # Mise à jour des itéres
+        xk, errorsquare =  Armijo_modified(nlp, xk, p, C)
+
+        # Mise à jour de nombre d'itérations
+        k+=1 
+        # Affichage des résultas
+        println(@sprintf("%d\t\t\t%.3e\t\t\t\t%.3e", 
+        k, sqrt(errorsquare), obj(nlp, xk)))
+    end
+    return xk
+    
+end
 ```
+
 
 # Question 2
 
 Tester votre implémentation et comparer la solution finale à celle de IPOPT sur 3 problèmes tirés de `OptimizationProblems`.
 
 ```{julia}
-# votre code ici
+meta = OptimizationProblems.meta
+problem_list = meta[(meta.ncon.==0).&(meta.has_bounds), :name]
+problems = (OptimizationProblems.ADNLPProblems.eval(Meta.parse(problem))() for problem ∈ problem_list)
 ```
+
+```{julia}
+model1 = OptimizationProblems.ADNLPProblems.hs4()
+C = SimpleBounds(model1.meta.lvar, model1.meta.uvar)
+x1 = projected_grad(model1, C)
+stats1 = ipopt(model1, print_level=0)
+println(norm(x1 - stats1.solution)/norm(stats1.solution))
+```
+
+```{julia}
+model2 = OptimizationProblems.ADNLPProblems.hs45()
+C = SimpleBounds(model2.meta.lvar, model2.meta.uvar)
+x2 = projected_grad(model2, C)
+stats2 = ipopt(model2, print_level=0)
+println(norm(x2 - stats2.solution)/norm(stats2.solution))
+```
+
+```{julia}
+model3 = OptimizationProblems.ADNLPProblems.hs5()
+C = SimpleBounds(model3.meta.lvar, model3.meta.uvar)
+x3 = projected_grad(model3, C)
+stats3 = ipopt(model3, print_level=0)
+println(norm(x3 - stats3.solution)/norm(stats3.solution))
+```
+
 
 # Questions 3
 
 Implémenter une structure et la fonction de projection pour une boule euclidienne.
 
 ```{julia}
-# votre code ici
+mutable struct EuclideanBall{V<:AbstractVector,T<:Real} <: AbstractSimpleSet
+    c::V   # centre
+    r::T   # rayon (>= 0)
+end
+
+"""
+Projection euclidienne sur la boule B(c, r).
+
+Modifie x en place et le renvoie.
+"""
+function projection!(x::V, C::EuclideanBall{V}) where {V<:AbstractVector}
+    @assert C.r ≥ 0 "Le rayon de la boule doit être non-négatif."
+    d = x .- C.c
+    nd = norm(d)
+    if nd > C.r
+        x .= C.c .+ (C.r/nd) .* d
+    end
+    return x
+end
+
+
 ```
 
 # Question 4
@@ -62,6 +186,28 @@ Votre solution pourrait-elle être utilisée pour calculer un pas dans une méth
 Expliquer.
 
 ```{julia}
-# votre code ici
+n = 10
+Δ = 1.25
+# Diagonale indéfinie
+d = [-2.0, -1.0, 0.0, 0.3, 0.7, 1.0, 2.0, 3.0, 5.0, 8.0]
+A = Diagonal(d)
+g = ones(n)
+
+m(s) = 0.5*dot(s, A*s) - dot(g, s)
+
+# Modèle ADNLP (sans contraintes explicites ; contrainte via projection)
+x0  = zeros(n)
+nlp = ADNLPModel(x -> m(x), x0)
+
+# Boule centrée à l'origine
+Cball = EuclideanBall(zeros(n), Δ)
+
+x_pg = projected_grad(nlp, Cball; eps_a=1e-9, eps_r=1e-9)
 ```
 
+## Explication
+
+- Cette méthode peut être utilisée pour le calcul du pas dans les méthodes de région de confiance, puisqu’on impose la condition d’Armijo, laquelle assure la décroissance de la fonction objectif — point essentiel. Elle peut être employée en initialisant le modèle à $0$ et en fixant le centre de la boule en $x_k$ itéré de la méthode employé.
+- L’avantage de cette méthode est qu’elle permet de trouver un point stationnaire du sous-problème de région de confiance à une tolérance près. À l’inverse, dans la méthode du gradient conjugué, dès qu’un itéré sort de la boule, on projette l’avant-dernier itéré sur la boule, ce qui n’est ni la solution du sous-problème de région de confiance ni même un point stationnaire.
+
+- Son principal inconvénient est qu’elle est coûteuse en évaluations de l’objectif par rapport au gradient conjuguée.
